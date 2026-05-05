@@ -4,8 +4,7 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -13,37 +12,35 @@ datasource db {
 }
 
 model User {
-  id            String @id
-  email         String
+  id            String   @id @default(uuid())
+  email         String   @unique
   name          String
-  totalCreation Int    @default(0)
-  credits       Int    @default(20)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  emailVerified Boolean   @default(false)
-  
-  // Relations
-  projects WebsiteProject[]
-  sessions      Session[]
-  accounts      Account[]
+  totalCreation Int      @default(0)
+  credits       Int      @default(20)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  emailVerified Boolean  @default(false)
+
+  projects     WebsiteProject[]
+  sessions     Session[]
+  accounts     Account[]
   transactions Transaction[]
 
   @@map("user")
 }
 
 model WebsiteProject {
-  id                    String  @id @default(uuid())
+  id                    String   @id @default(uuid())
   name                  String
   initial_prompt        String
   current_code          String?
-  current_version_index String  @default("")
+  current_version_index String   @default("")
   userId                String
-  isPublished           Boolean @default(false)
+  isPublished           Boolean  @default(false)
 
-  // Relations
   conversation Conversation[]
   versions     Version[]
-  user         User           @relation(fields: [userId], references: [id])
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -61,7 +58,6 @@ model Conversation {
   timestamp DateTime @default(now())
   projectId String
 
-  // Relations
   project WebsiteProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
@@ -72,7 +68,6 @@ model Version {
   timestamp   DateTime @default(now())
   projectId   String
 
-  // Relations
   project WebsiteProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
@@ -80,38 +75,39 @@ model Transaction {
   id        String   @id @default(uuid())
   isPaid    Boolean  @default(false)
   planId    String
-  amount    Float
+  amount    Decimal
   credits   Int
   userId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Session {
-  id        String   @id
+  id        String   @id @default(uuid())
   expiresAt DateTime
-  token     String
+  token     String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   ipAddress String?
   userAgent String?
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@map("session")
 }
 
 model Account {
-  id                    String    @id
+  id                    String   @id @default(uuid())
   accountId             String
   providerId            String
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   accessToken           String?
   refreshToken          String?
   idToken               String?
@@ -119,15 +115,16 @@ model Account {
   refreshTokenExpiresAt DateTime?
   scope                 String?
   password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@map("account")
 }
 
 model Verification {
-  id         String   @id
+  id         String   @id @default(uuid())
   identifier String
   value      String
   expiresAt  DateTime
