@@ -3,6 +3,8 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth.js";
+import userRouter from "./routes/userRoutes.js";
+import projectRouter from "./routes/projectRoutes.js";
 
 const app = express();
 
@@ -21,6 +23,11 @@ app.use(
 app.use(express.json());
 
 app.all("/api/auth/*splat", toNodeHandler(auth));
+
+app.use(express.json({limit:'50mb'}))
+
+app.use('/api/user', userRouter);
+app.use('/api/project',projectRouter);
 
 const port = process.env.PORT || 3000;
 
