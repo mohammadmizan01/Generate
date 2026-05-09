@@ -8,12 +8,15 @@ import View from "./pages/View";
 import Community from "./pages/Community";
 // import NavBar from "./components/NavBar";
 import Footer from "./components/Footer";
+import { Toaster } from "sonner";
+import  AuthPage  from "./pages/auth/AuthPage";
 
 
 const App = () => {
   return(
     <div>
       {/* <NavBar /> */}
+      <Toaster />
         <Routes>
           
           <Route path = "/" element={<Home />}   />
@@ -24,8 +27,7 @@ const App = () => {
           <Route path="/preview/:projectId/:versionId" element={<Preview />} />
           <Route path="/view/:projectId" element={<View />} />
           <Route path="/community" element={<Community />} />
-
-        </Routes>
+          <Route path="/auth/:view?" element={<AuthPage />} />        </Routes>
         <Footer />
     </div>
   )

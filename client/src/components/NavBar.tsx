@@ -1,10 +1,15 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { UserButton } from "./user-button";
+import { authClient } from "@/lib/auth-client";
+import { ArrowRight } from "lucide-react";
 
 const NavBar = () => {
 
     const [mobileOpen, setMobileOpen] = useState(false);
     const navigate = useNavigate();
+
+    const {data:session} = authClient.useSession();
     return (
         <nav className="flex flex-col items-center w-full" >
             <div className="flex items-center justify-between p-4 md:px-16 lg:px-24 xl:px-32 md:py-5 w-full">
@@ -30,14 +35,20 @@ const NavBar = () => {
                         </svg>
                     </button> 
                 </div>
-                <button onClick={() => navigate('/auth/signin') } className='bg-linear-to-r from-[#0000FF]/20 to-[#800080]/10 border border-white/15 hover:border-white/30 hidden md:flex items-center gap-3 px-2 py-1 pr-4 rounded-full transition-cursor cursor-pointer'>
+                {!session?.user? (
+                    <button onClick={() => navigate('/auth/sign-in') } className='bg-linear-to-r from-[#0000FF]/20 to-[#800080]/10 border border-white/15 hover:border-white/30 hidden md:flex items-center gap-3 px-2 py-1 pr-4 rounded-full transition-cursor cursor-pointer'>
                     <div className='size-10 rounded-full border-2 border-[#7E69B5] flex items-center justify-center'>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-phone-call-icon lucide-phone-call"><path d="M13 2a9 9 0 0 1 9 9"/><path d="M13 6a5 5 0 0 1 5 5"/><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
+                        <ArrowRight/>
+                        {/* <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-phone-call-icon lucide-phone-call"><path d="M13 2a9 9 0 0 1 9 9"/><path d="M13 6a5 5 0 0 1 5 5"/><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg> */}
                     </div>
                     <span className="text-slate-100 text-sm">
                         Get Started
                     </span>
-                </button> 
+                </button>
+                ):( 
+                    <UserButton size='icon'/>
+                )
+                     }
 
                 <button id="open-menu" onClick={() => setMobileOpen(true)}
                     className="md:hidden bg-gray-900 hover:bg-gray-800 text-gray-50 p-2 rounded-md aspect-square font-medium transition">
