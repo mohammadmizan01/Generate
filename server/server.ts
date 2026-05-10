@@ -9,9 +9,9 @@ import projectRouter from "./routes/projectRoutes.js";
 const app = express();
 
 const allowedOrigins =
-  process.env.TRUSTED_ORIGINS?.split(",").map((s) => s.trim()).filter(Boolean) ?? [
-    "http://localhost:5173",
-  ];
+  process.env.TRUSTED_ORIGINS?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean) ?? ["http://localhost:5173"];
 
 app.use(
   cors({
@@ -20,18 +20,16 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
 
 app.all("/api/auth/*splat", toNodeHandler(auth));
 
-app.use(express.json({limit:'50mb'}))
+app.use("/api/user", userRouter);
+app.use("/api/projects", projectRouter);
 
-app.use('/api/user', userRouter);
-app.use('/api/project',projectRouter);
+const port = Number(process.env.PORT) || 3000;
 
-const port = process.env.PORT || 3000;
-
-app.get("/", (req: Request, res: Response) => {
+app.get("/", (_req: Request, res: Response) => {
   res.send("Server is Live!");
 });
 

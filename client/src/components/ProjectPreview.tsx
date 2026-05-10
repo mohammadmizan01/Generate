@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef } from "react";
 import { iframeScript } from "../assets/assets";
 import type { Project } from "../types";
+import LoaderSteps from "./LooderSteps";
 
 interface ProjectPreviewProps {
   project: Project;
@@ -80,7 +81,7 @@ const ProjectPreview = forwardRef<ProjectPreviewRef, ProjectPreviewProps>(
             sandbox="allow-scripts"
           />
         ) : (
-          isGenerating && <div>loading</div>
+          isGenerating && <LoaderSteps/>
         )}
       </div>
     );

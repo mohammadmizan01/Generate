@@ -10,10 +10,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": [
-    "./**/*.ts",
-    "./**/*.d.ts"
-  ],
+  "include": ["./**/*.ts", "./**/*.d.ts"],
   "exclude": [
     "node_modules"
   ]

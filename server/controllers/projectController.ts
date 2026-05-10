@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma.js";
-import openai from "../configs/openai.js";
+import openai, { OPENROUTER_MODEL } from "../configs/openai.js";
 
 const CREDIT_COST = 5;
 const MAX_MESSAGE_LENGTH = 4000;
@@ -47,6 +47,39 @@ function stripCodeFences(content: string): string {
     .trim();
 }
 
+function buildHtmlGenerationMessages(args: {
+  currentCode: string | null;
+  requestText: string;
+}) {
+  const { currentCode, requestText } = args;
+
+  if (currentCode) {
+    return [
+      {
+        role: "system" as const,
+        content:
+          "You are an expert web developer. Update the current website code according to the user's request. Return valid HTML only. Use Tailwind CSS for all styling. Keep the page complete and ready to render. Include interactive JavaScript before </body>. Do not include markdown, explanations, or code fences.",
+      },
+      {
+        role: "user" as const,
+        content: `Current website code:\n${currentCode}\n\nUser request:\n${requestText}`,
+      },
+    ];
+  }
+
+  return [
+    {
+      role: "system" as const,
+      content:
+        "You are an expert web developer. Create a complete, production-ready, single-page website from the user's request. Return valid HTML only. Use Tailwind CSS for all styling. Include interactive JavaScript before </body>. Do not include markdown, explanations, or code fences.",
+    },
+    {
+      role: "user" as const,
+      content: `User request:\n${requestText}`,
+    },
+  ];
+}
+
 export const makeRevision = async (
   req: Request<ProjectParams, unknown, RevisionBody>,
   res: Response
@@ -60,11 +93,13 @@ export const makeRevision = async (
     }
 
     const projectId = normalizeText(req.params.projectId, MAX_PROJECT_ID_LENGTH);
+
     if (!projectId) {
       return res.status(400).json({ message: "Invalid projectId" });
     }
 
     const message = normalizeText(req.body?.message, MAX_MESSAGE_LENGTH);
+
     if (!message) {
       return res.status(400).json({ message: "Valid prompt required" });
     }
@@ -84,17 +119,17 @@ export const makeRevision = async (
       return res.status(404).json({ message: "Project not found" });
     }
 
-    if (!currentProject.current_code) {
-      return res.status(400).json({ message: "Project has no current code" });
-    }
-
     const debitResult = await prisma.user.updateMany({
       where: {
         id: userId,
-        credits: { gte: CREDIT_COST },
+        credits: {
+          gte: CREDIT_COST,
+        },
       },
       data: {
-        credits: { decrement: CREDIT_COST },
+        credits: {
+          decrement: CREDIT_COST,
+        },
       },
     });
 
@@ -112,66 +147,16 @@ export const makeRevision = async (
       },
     });
 
-    const promptEnhanceResponse = await openai.chat.completions.create({
-      model: "nvidia/nemotron-3-super-120b-a12b:free",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a prompt enhancement specialist. Expand the user's website revision request into a detailed, concise, actionable brief for a web developer. Include layout changes, styling changes, UX behavior, responsiveness, and any missing important details. Return only the enhanced prompt.",
-        },
-        {
-          role: "user",
-          content: `User's revision request: ${message}`,
-        },
-      ],
+    const codeResponse = await openai.chat.completions.create({
+      model: OPENROUTER_MODEL,
+      messages: buildHtmlGenerationMessages({
+        currentCode: currentProject.current_code ?? null,
+        requestText: message,
+      }),
+      temperature: 0.5,
     });
 
-    const enhancedPrompt =
-      promptEnhanceResponse.choices[0]?.message?.content?.trim() || message;
-
-    await prisma.conversation.create({
-      data: {
-        role: "assistant",
-        content: `Enhanced revision prompt:\n\n${enhancedPrompt}`,
-        projectId,
-      },
-    });
-
-    await prisma.conversation.create({
-      data: {
-        role: "assistant",
-        content: "Making changes to your website...",
-        projectId,
-      },
-    });
-
-    const codeGenerationResponse = await openai.chat.completions.create({
-      model: "nvidia/nemotron-3-super-120b-a12b:free",
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert web developer. Update the current website code according to the user's revision request.
-
-Rules:
-- Return valid HTML only
-- Use Tailwind CSS for all styling
-- Keep the page complete and ready to render
-- Include interactive JavaScript before </body>
-- Do not include markdown, explanations, or code fences`,
-        },
-        {
-          role: "user",
-          content: `Current website code:
-${currentProject.current_code}
-
-Revision request:
-${enhancedPrompt}`,
-        },
-      ],
-    });
-
-    const rawCode = codeGenerationResponse.choices[0]?.message?.content ?? "";
+    const rawCode = codeResponse.choices[0]?.message?.content ?? "";
     const code = stripCodeFences(rawCode);
 
     if (!code) {
@@ -181,7 +166,7 @@ ${enhancedPrompt}`,
     const version = await prisma.version.create({
       data: {
         code,
-        description: "Revision made",
+        description: currentProject.current_code ? "Revision made" : "Initial version",
         projectId,
       },
     });
@@ -197,13 +182,14 @@ ${enhancedPrompt}`,
     await prisma.conversation.create({
       data: {
         role: "assistant",
-        content: "Changes done.",
+        content: currentProject.current_code
+          ? "Changes done."
+          : "Website generated successfully.",
         projectId,
       },
     });
 
-    return res.json({
-      message: "Revision saved",
+    return res.status(201).json({
       projectId,
       versionId: version.id,
     });
@@ -246,11 +232,13 @@ export const saveProjectCode = async (
     }
 
     const projectId = normalizeText(req.params.projectId, MAX_PROJECT_ID_LENGTH);
+
     if (!projectId) {
       return res.status(400).json({ message: "Invalid projectId" });
     }
 
     const code = normalizeText(req.body?.code, MAX_CODE_LENGTH);
+
     if (!code) {
       return res.status(400).json({ message: "Valid code required" });
     }
@@ -401,6 +389,7 @@ export const deleteProject = async (
     }
 
     const projectId = normalizeText(req.params.projectId, MAX_PROJECT_ID_LENGTH);
+
     if (!projectId) {
       return res.status(400).json({ message: "Invalid projectId" });
     }
@@ -453,6 +442,7 @@ export const getProjectPreview = async (
     }
 
     const projectId = normalizeText(req.params.projectId, MAX_PROJECT_ID_LENGTH);
+
     if (!projectId) {
       return res.status(400).json({ message: "Invalid projectId" });
     }
@@ -499,8 +489,10 @@ export const getPublishedProjects = async (
       select: {
         id: true,
         name: true,
+        initial_prompt: true,
         current_code: true,
         current_version_index: true,
+        isPublished: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -520,6 +512,7 @@ export const getProjectById = async (
 ) => {
   try {
     const projectId = normalizeText(req.params.projectId, MAX_PROJECT_ID_LENGTH);
+
     if (!projectId) {
       return res.status(400).json({ message: "Invalid projectId" });
     }

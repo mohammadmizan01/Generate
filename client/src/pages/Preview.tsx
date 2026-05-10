@@ -1,7 +1,9 @@
-import { useParams } from "react-router-dom";
-import { dummyProjects } from "../assets/assets";
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import axios from "axios";
 import { Loader2Icon } from "lucide-react";
+import { toast } from "sonner";
+import api from "@/configs/axios";
 import ProjectPreview from "../components/ProjectPreview";
 import type { Project } from "../types";
 
@@ -12,45 +14,52 @@ const Preview = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const foundProject = dummyProjects.find(
-        (project) => project.id === projectId
-      );
-
-      if (!foundProject) {
+    const fetchPreview = async () => {
+      if (!projectId) {
         setLoading(false);
         return;
       }
 
-      if (versionId) {
-        const version = foundProject.versions.find(
-          (version) => version.id === versionId
-        );
+      try {
+        setLoading(true);
 
-        if (version) {
-          setProject({
-            ...foundProject,
-            current_code: version.code,
-            current_version_index: version.id,
-          });
+        const { data } = await api.get(`/api/projects/preview/${projectId}`);
+        const fetchedProject: Project = data.project;
+
+        if (versionId && fetchedProject.versions?.length) {
+          const version = fetchedProject.versions.find(
+            (item) => item.id === versionId
+          );
+
+          if (version) {
+            setProject({
+              ...fetchedProject,
+              current_code: version.code,
+              current_version_index: version.id,
+            });
+          } else {
+            setProject(fetchedProject);
+          }
         } else {
-          setProject(foundProject);
+          setProject(fetchedProject);
         }
-      } else {
-        setProject(foundProject);
+      } catch (error: unknown) {
+        if (axios.isAxiosError(error)) {
+          toast.error(error.response?.data?.message || error.message);
+        } else {
+          toast.error("Unable to load preview");
+        }
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
-    }, 2000);
-
-    return () => {
-      window.clearTimeout(timer);
     };
+
+    void fetchPreview();
   }, [projectId, versionId]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex h-screen items-center justify-center">
         <Loader2Icon className="size-7 animate-spin text-indigo-200" />
       </div>
     );
@@ -58,7 +67,7 @@ const Preview = () => {
 
   if (!project) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-950 text-white">
+      <div className="flex h-screen items-center justify-center bg-gray-950 text-white">
         Unable to load preview.
       </div>
     );
